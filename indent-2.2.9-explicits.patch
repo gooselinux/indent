@@ -1,0 +1,11 @@
+diff -Burp indent-2.2.9/man/texinfo2man.c indent-2.2.9-explicits/man/texinfo2man.c
+--- indent-2.2.9/man/texinfo2man.c	2006-01-18 18:18:00.000000000 +0100
++++ indent-2.2.9-explicits/man/texinfo2man.c	2006-01-18 18:15:14.000000000 +0100
+@@ -163,6 +163,7 @@ int start_line[256];
+ 
+ static char value_updated[64], value_edition[64], value_version[64];
+ 
++void
+ process_texi (FILE * in)
+ {
+   char buf[1024];

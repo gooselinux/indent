@@ -1,0 +1,88 @@
+diff -burp indent-2.2.9/src/indent.c indent-2.2.9-cdw/src/indent.c
+--- indent-2.2.9/src/indent.c	2006-01-18 18:22:36.000000000 +0100
++++ indent-2.2.9-cdw/src/indent.c	2006-01-27 17:13:55.000000000 +0100
+@@ -976,13 +976,10 @@ static void handle_token_semicolon(
+ 
+     if (!*sp_sw)
+     {                       /* if not if for (;;) */
+-        do
+-        {
+             if (parse (semicolon) != total_success)
+             {
+                 *file_exit_value = indent_error;
+             }
+-        } while(0);
+                 
+         *force_nl = true;    /* force newline after a end of stmt */
+     }
+@@ -2625,6 +2622,18 @@ static exit_values_ty indent_main_loop(v
+             return file_exit_value;                                              /* RETURN */
+         }
+ 
++	if (type_code == sp_paren
++	    && parser_state_tos->p_stack[parser_state_tos->tos] == dohead
++	    && parser_state_tos->last_token == rbrace)
++	{
++	    /* This is closing `while' of `do {stuff;} while'
++	       statement (not `do stuff; while' command).  In -cdw, we
++	       want to suppress newline. */
++	    if (settings.cuddle_do_while)
++	        force_nl = false;
++	    parser_state_tos->in_closing_br_while = true;
++	}
++
+         if ((type_code != comment) &&
+             (type_code != cplus_comment) &&
+             (type_code != newline) &&
+diff -burp indent-2.2.9/src/indent.h indent-2.2.9-cdw/src/indent.h
+--- indent-2.2.9/src/indent.h	2006-01-18 18:22:36.000000000 +0100
++++ indent-2.2.9-cdw/src/indent.h	2006-01-27 17:20:14.000000000 +0100
+@@ -357,6 +357,9 @@ typedef struct parser_state
+     BOOLEAN in_decl;              /*!<  set to true when we are in a declaration
+                                    * statement.  The processing of braces is then
+                                    * slightly different */
++    BOOLEAN in_closing_br_while;  /*!< set to true when we are parsing
++                                   * closing while of do {} while
++                                   * statement*/
+     int in_stmt;                  /*!<  set to 1 while in a stmt */
+     int in_parameter_declaration;
+     int ind_level;                /*!<  the current indentation level in spaces */
+diff -burp indent-2.2.9/src/parse.c indent-2.2.9-cdw/src/parse.c
+--- indent-2.2.9/src/parse.c	2002-08-04 19:08:41.000000000 +0200
++++ indent-2.2.9-cdw/src/parse.c	2006-01-27 17:18:52.000000000 +0100
+@@ -38,6 +38,7 @@ void init_parser (void)
+     parser_state_tos->cstk          = (int *) xmalloc (INITIAL_STACK_SIZE * sizeof (int));
+     parser_state_tos->paren_indents_size = 8;
+     parser_state_tos->paren_indents = (short *) xmalloc (parser_state_tos->paren_indents_size * sizeof (short));
++    parser_state_tos->in_closing_br_while = false;
+ 
+     /* Although these are supposed to grow if we reach the end,
+      * I can find no place in the code which does this. */
+@@ -380,6 +381,14 @@ exit_values_ty parse (
+ 
+                 parser_state_tos->ind_level                 = parser_state_tos->i_l_follow;
+                 parser_state_tos->il[parser_state_tos->tos] = parser_state_tos->i_l_follow;
++
++		if (parser_state_tos->in_closing_br_while
++		    && settings.cuddle_do_while
++		    && !settings.btype_2)
++		{
++		    parser_state_tos->ind_level += settings.brace_indent;
++		}
++		parser_state_tos->in_closing_br_while = false;
+             }
+             else
+             {                   /* it is a while loop */
+@@ -409,6 +418,12 @@ exit_values_ty parse (
+                 parser_state_tos->p_stack[parser_state_tos->tos] = elsehead;
+                 /* remember if with else */
+                 parser_state_tos->search_brace = true;
++
++		if (settings.cuddle_else
++		    && !settings.btype_2)
++		{
++		    parser_state_tos->ind_level += settings.brace_indent;
++		}
+             }
+             break;
+ 
